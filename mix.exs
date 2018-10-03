@@ -7,7 +7,10 @@ defmodule Sievex.MixProject do
       version: "0.1.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: [
+        test: ["test --trace"],
+      ],
     ]
   end
 
