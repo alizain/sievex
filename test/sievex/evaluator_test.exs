@@ -3,6 +3,14 @@ defmodule SievexTest.Evaluator do
   import ExUnit.CaptureLog, only: [capture_log: 1]
   alias Sievex.Evaluator
 
+  describe "evaluate/4" do
+    test "works" do
+      func = fn %{id: 1}, :action, nil -> :allow end
+
+      assert {:allow, nil} == Evaluator.evaluate(%{id: 1}, :action, nil, [func], fallback: :deny)
+    end
+  end
+
   describe "validate_config/1" do
     test "raises when `:fallback` is invalid" do
       [
@@ -25,9 +33,25 @@ defmodule SievexTest.Evaluator do
         assert {:ok, config} == Evaluator.validate_config(config)
       end)
     end
+
+    test "converts bare maps to structs" do
+      assert {:ok, %Evaluator{fallback: :allow}} == Evaluator.validate_config(%{fallback: :allow})
+    end
+
+    test "converts keyword lists to structs" do
+      assert {:ok, %Evaluator{fallback: :allow}} == Evaluator.validate_config(fallback: :allow)
+    end
   end
 
   describe "apply_ruleset/1" do
+    test "falls back when no matching rule is found" do
+      config = %Evaluator{
+        ruleset: []
+      }
+
+      assert Evaluator.apply_ruleset(config) == {:deny, "no matching rules found"}
+    end
+
     test "auto-wrap when the rule returns a bare atom" do
       config = %Evaluator{
         ruleset: [

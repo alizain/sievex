@@ -16,16 +16,16 @@ defmodule Sievex.Evaluator do
   # @allowed_results [ @passthrough_result | @meaningful_results ]
 
   def evaluate(user, action, subject, ruleset, raw_opts \\ %{}) do
-    __MODULE__
-    |> struct(raw_opts)
-    |> struct(%{
-      args: [user, action, subject],
-      ruleset: ruleset
-    })
+    raw_opts
     |> validate_config()
     |> case do
       {:ok, config} ->
-        apply_ruleset(config)
+        config
+        |> struct(%{
+            args: [user, action, subject],
+            ruleset: ruleset
+          })
+        |> apply_ruleset()
       {:error, _reason} = error ->
         error
     end
@@ -38,6 +38,18 @@ defmodule Sievex.Evaluator do
       true ->
         {:ok, config}
     end
+  end
+
+  def validate_config(%{} = raw_opts) do
+    __MODULE__
+    |> struct(raw_opts)
+    |> validate_config()
+  end
+
+  def validate_config(raw_opts) when is_list(raw_opts) do
+    raw_opts
+    |> Enum.into(%{})
+    |> validate_config()
   end
 
   def apply_ruleset(%__MODULE__{ruleset: [], fallback: fallback}) do
