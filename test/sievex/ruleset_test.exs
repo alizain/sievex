@@ -6,11 +6,16 @@ defmodule SievexTest.Ruleset do
 
       defmodule TestRuleset do
         use Sievex.Ruleset, fallback: :deny
-        require Sievex.Rules
 
-        check_if_match "allow superusers",
+        check :check_another_thing
+        check "do something else",
+          &__MODULE__.check_another_thing/3
+        check "allow superusers",
           (%{super: true}, action, _subject when action in [1, 2] -> :allow)
 
+        def check_another_thing(_user, _action, _subject) do
+          nil
+        end
       end
 
       assert {:allow, nil} == TestRuleset.apply(%{super: true}, 1, nil)

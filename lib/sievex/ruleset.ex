@@ -1,5 +1,5 @@
 defmodule Sievex.Ruleset do
-  require Sievex.Rules
+  @arity 3
 
   defmacro __using__(opts) do
     quote location: :keep do
@@ -33,11 +33,19 @@ defmodule Sievex.Ruleset do
     end
   end
 
-  # TODO: use the Sievex.Rules.check_if_match macro within this macro!
-  defmacro check_if_match(description, expr) do
-    func_name = String.to_atom("check " <> description)
-    func_args = Macro.generate_arguments(3, nil)
-    func_anon = {:fn, [], expr}
+  defmacro check(func_name) when is_atom(func_name) do
+    quote do
+      @sievex_ruleset {__MODULE__, unquote(func_name)}
+    end
+  end
+
+  # TODO: Learn more about how context works!
+  defmacro check(description, expr) do
+    context = nil
+    # [context | _] = __CALLER__.context_modules
+    func_args = Macro.generate_arguments(@arity, context)
+    func_name = String.to_atom("auto check " <> description)
+    func_anon = Sievex.Expression.compile(expr, context)
     quote do
       def unquote(func_name)(unquote_splicing(func_args)) do
         (unquote(func_anon)).(unquote_splicing(func_args))
