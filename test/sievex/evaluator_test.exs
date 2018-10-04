@@ -3,15 +3,7 @@ defmodule SievexTest.Evaluator do
   import ExUnit.CaptureLog, only: [capture_log: 1]
   alias Sievex.Evaluator
 
-  describe "evaluate/4" do
-    test "works" do
-      func = fn %{id: 1}, :action, nil -> :allow end
-
-      assert {:allow, nil} == Evaluator.evaluate(%{id: 1}, :action, nil, [func], fallback: :deny)
-    end
-  end
-
-  describe "validate_config/1" do
+  describe "`validate_config/1`" do
     test "raises when `:fallback` is invalid" do
       [
         %Evaluator{fallback: nil},
@@ -43,13 +35,13 @@ defmodule SievexTest.Evaluator do
     end
   end
 
-  describe "apply_ruleset/1" do
+  describe "`apply_ruleset/1`" do
     test "falls back when no matching rule is found" do
       config = %Evaluator{
         ruleset: []
       }
 
-      assert Evaluator.apply_ruleset(config) == {:deny, "no matching rules found"}
+      assert Evaluator.apply_ruleset(config) == {:deny, "no matching rules found, using fallback"}
     end
 
     test "auto-wrap when the rule returns a bare atom" do
@@ -123,7 +115,7 @@ defmodule SievexTest.Evaluator do
         ]
       }
 
-      assert_raise(Sievex.Evaluator.RuleInvalidResultError, "false", fn ->
+      assert_raise(Sievex.Errors.RuleResultError, "false", fn ->
         Evaluator.apply_ruleset(config)
       end)
     end

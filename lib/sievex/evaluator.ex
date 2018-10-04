@@ -1,33 +1,36 @@
 defmodule Sievex.Evaluator do
+  alias Sievex.Errors
+
   defstruct args: [], ruleset: [], fallback: :deny
 
-  defmodule RuleInvalidResultError do
-    defexception [:message]
-
-    @impl true
-    def exception(result) do
-      %__MODULE__{message: "#{result}"}
-    end
-  end
+  @arity 3
 
   @meaningful_results [:deny, :allow]
   @passthrough_result nil
 
   # @allowed_results [ @passthrough_result | @meaningful_results ]
 
-  def evaluate(user, action, subject, ruleset, raw_opts \\ %{}) do
-    raw_opts
+  def evaluate(args, ruleset, opts) do
+    opts
+    |> Map.merge(%{
+      args: args,
+      ruleset: ruleset
+    })
     |> validate_config()
     |> case do
       {:ok, config} ->
-        config
-        |> struct(%{
-            args: [user, action, subject],
-            ruleset: ruleset
-          })
-        |> apply_ruleset()
+        apply_ruleset(config)
       {:error, _reason} = error ->
         error
+    end
+  end
+
+  def validate_config!(config) do
+    case validate_config(config) do
+      {:ok, config} ->
+        config
+      {:error, message} ->
+        raise Errors.ConfigError, message
     end
   end
 
@@ -53,12 +56,12 @@ defmodule Sievex.Evaluator do
   end
 
   def apply_ruleset(%__MODULE__{ruleset: [], fallback: fallback}) do
-    {fallback, "no matching rules found"}
+    {fallback, "no matching rules found, using fallback"}
   end
 
   def apply_ruleset(%__MODULE__{args: args, ruleset: [rule | remaining_ruleset]} = config) do
     rule
-    |> apply(args)
+    |> apply_rule(args)
     |> case do
       result when result in @meaningful_results ->
         {result, nil}
@@ -72,7 +75,23 @@ defmodule Sievex.Evaluator do
         |> apply_ruleset()
 
       result ->
-        raise RuleInvalidResultError, result
+        raise Errors.RuleResultError, result
     end
+  end
+
+  def apply_rule({module, func}, args) do
+    if function_exported?(module, func, @arity) do
+      apply(module, func, args)
+    else
+      raise Errors.RuleError, ""
+    end
+  end
+
+  def apply_rule(func, args) when is_function(func) do
+    apply(func, args)
+  end
+
+  def apply_rule(_rule, _args) do
+    raise Errors.RuleError, ""
   end
 end

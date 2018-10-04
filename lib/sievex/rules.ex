@@ -1,5 +1,12 @@
 defmodule Sievex.Rules do
-  @no_op quote do: (_user, _action, _subject -> nil)
+  @arity 3
+
+  @no_op (
+    case @arity do
+      1 -> quote do: (_context -> nil)
+      3 -> quote do: (_user, _action, _subject -> nil)
+    end
+  )
 
   defmacro check_if_match([{:->, _opts, _block}] = branches) do
     {:fn, [], branches ++ @no_op}
@@ -13,19 +20,7 @@ defmodule Sievex.Rules do
   #   expr
   # end
 
-  defmacro check_if_match(_) do
+  defmacro check_if_match(_args) do
     raise ArgumentError, "invalid expression for `check_if_match/1`"
-  end
-
-  defmacro allow(expected_user, expected_action, expected_subject) do
-    quote do
-      check_if_match (unquote(expected_user), unquote(expected_action), unquote(expected_subject) -> :allow)
-    end
-  end
-
-  defmacro deny(expected_user, expected_action, expected_subject) do
-    quote do
-      check_if_match (unquote(expected_user), unquote(expected_action), unquote(expected_subject) -> :deny)
-    end
   end
 end
