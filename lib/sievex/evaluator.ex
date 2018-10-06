@@ -1,9 +1,7 @@
 defmodule Sievex.Evaluator do
-  @arity 3
-
   alias Sievex.Errors
 
-  defstruct args: [], ruleset: [], fallback: :deny
+  defstruct args: [], ruleset: [], fallback: :deny, arity: 3
 
   @meaningful_results [:deny, :allow]
   @passthrough_result nil
@@ -59,9 +57,9 @@ defmodule Sievex.Evaluator do
     {fallback, "fallback"}
   end
 
-  def apply_ruleset(%__MODULE__{args: args, ruleset: [rule | remaining_ruleset]} = config) do
+  def apply_ruleset(%__MODULE__{args: args, ruleset: [rule | remaining_ruleset], arity: arity} = config) do
     rule
-    |> apply_rule(args)
+    |> apply_rule(args, arity)
     |> case do
       result when result in @meaningful_results ->
         {result, nil}
@@ -79,11 +77,11 @@ defmodule Sievex.Evaluator do
     end
   end
 
-  def apply_rule({module, func}, args) do
-    if function_exported?(module, func, @arity) do
+  def apply_rule({module, func}, args, arity) do
+    if function_exported?(module, func, arity) do
       apply(module, func, args)
     else
-      raise Errors.RuleError, ""
+      raise Errors.RuleError, "#{func}/#{arity} could not be found in #{module}"
     end
   end
 
@@ -92,6 +90,6 @@ defmodule Sievex.Evaluator do
   end
 
   def apply_rule(_rule, _args) do
-    raise Errors.RuleError, ""
+    raise Errors.RuleError, "invalid rule"
   end
 end

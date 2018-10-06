@@ -1,7 +1,5 @@
 defmodule Sievex.Expression do
-  @arity 3
-
-  def no_op(context, arity \\ @arity) do
+  def no_op(arity, context) do
     variables =
       Enum.map 0..(arity - 1), fn _ ->
         Macro.var(:_, context)
@@ -11,15 +9,15 @@ defmodule Sievex.Expression do
     end
   end
 
-  def compile([{:->, _opts, _block}] = expr, context) do
-    {:fn, [], expr ++ no_op(context)}
+  def compile([{:->, _opts, _block}] = expr, arity, context) do
+    {:fn, [], expr ++ no_op(arity, context)}
   end
 
-  def compile({:&, _opts, _block} = expr, _context) do
+  def compile({:&, _opts, _block} = expr, _arity, _context) do
     expr
   end
 
-  def compile(_args, _context) do
+  def compile(_args, _arity, _context) do
     raise ArgumentError, "invalid expression for `check_if_match/1`"
   end
 end
