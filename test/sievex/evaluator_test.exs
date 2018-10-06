@@ -9,7 +9,7 @@ defmodule SievexTest.Evaluator do
         %Evaluator{fallback: nil},
         %Evaluator{fallback: "invalid"},
         %Evaluator{fallback: 1_000},
-        %Evaluator{fallback: :something},
+        %Evaluator{fallback: :something}
       ]
       |> Enum.each(fn config ->
         assert {:error, "Invalid value for `:fallback`"} == Evaluator.validate_config(config)
@@ -19,7 +19,7 @@ defmodule SievexTest.Evaluator do
     test "allows when `:fallback` is valid" do
       [
         %Evaluator{fallback: :allow},
-        %Evaluator{fallback: :deny},
+        %Evaluator{fallback: :deny}
       ]
       |> Enum.each(fn config ->
         assert {:ok, config} == Evaluator.validate_config(config)
@@ -91,10 +91,22 @@ defmodule SievexTest.Evaluator do
 
       config = %Evaluator{
         ruleset: [
-          fn -> Logger.info "rule no.1 evaluated"; nil end,
-          fn -> Logger.info "rule no.2 evaluated"; nil end,
-          fn -> Logger.info "rule no.3 evaluated"; nil end,
-          fn -> Logger.info "rule no.4 evaluated"; :allow end
+          fn ->
+            Logger.info("rule no.1 evaluated")
+            nil
+          end,
+          fn ->
+            Logger.info("rule no.2 evaluated")
+            nil
+          end,
+          fn ->
+            Logger.info("rule no.3 evaluated")
+            nil
+          end,
+          fn ->
+            Logger.info("rule no.4 evaluated")
+            :allow
+          end
         ]
       }
 

@@ -7,7 +7,12 @@ defmodule Sievex.Ruleset do
 
       Module.register_attribute(__MODULE__, :sievex_raw, accumulate: true)
       Module.register_attribute(__MODULE__, :sievex_ruleset, accumulate: true)
-      Module.put_attribute(__MODULE__, :sievex_opts, Sievex.Evaluator.validate_config!(unquote(opts)))
+
+      Module.put_attribute(
+        __MODULE__,
+        :sievex_opts,
+        Sievex.Evaluator.validate_config!(unquote(opts))
+      )
 
       @before_compile Sievex.Ruleset
     end
@@ -37,6 +42,7 @@ defmodule Sievex.Ruleset do
 
   defmacro check(description, expr) when is_binary(description) do
     expr_escaped = Macro.escape(expr)
+
     quote do
       @sievex_raw {unquote(description), unquote(expr_escaped)}
     end
@@ -56,16 +62,19 @@ defmodule Sievex.Ruleset do
     func_args = Macro.generate_arguments(arity, context)
     func_name = String.to_atom("auto check " <> description)
     func_anon = Sievex.Expression.compile(expr, arity, context)
+
     quote do
       def unquote(func_name)(unquote_splicing(func_args)) do
-        (unquote(func_anon)).(unquote_splicing(func_args))
+        unquote(func_anon).(unquote_splicing(func_args))
       end
+
       @sievex_ruleset {__MODULE__, unquote(func_name)}
     end
   end
 
   def generate_apply(func_name, arity, context) do
     func_args = Macro.generate_arguments(arity, context)
+
     quote do
       def unquote(func_name)(unquote_splicing(func_args)) do
         Sievex.Evaluator.evaluate(unquote(func_args), ruleset(), opts())

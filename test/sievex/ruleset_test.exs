@@ -44,9 +44,11 @@ defmodule SievexTest.Ruleset do
       def suzuki(%{role: :super}) do
         {:allow, "found a superuser"}
       end
+
       def suzuki(%{role: role}) when role in [:user, :moderator] do
         {:deny, "uhoh, just a #{role}"}
       end
+
       def suzuki(_) do
         nil
       end

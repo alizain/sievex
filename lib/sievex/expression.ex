@@ -1,9 +1,10 @@
 defmodule Sievex.Expression do
   def no_op(arity, context) do
     variables =
-      Enum.map 0..(arity - 1), fn _ ->
+      Enum.map(0..(arity - 1), fn _ ->
         Macro.var(:_, context)
-      end
+      end)
+
     quote do
       unquote_splicing(variables) -> nil
     end

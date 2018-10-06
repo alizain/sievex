@@ -18,6 +18,7 @@ defmodule Sievex.Evaluator do
     |> case do
       {:ok, config} ->
         apply_ruleset(config)
+
       {:error, _reason} = error ->
         error
     end
@@ -27,6 +28,7 @@ defmodule Sievex.Evaluator do
     case validate_config(config) do
       {:ok, config} ->
         config
+
       {:error, message} ->
         raise Errors.ConfigError, message
     end
@@ -36,6 +38,7 @@ defmodule Sievex.Evaluator do
     cond do
       not Enum.member?(@meaningful_results, config.fallback) ->
         {:error, "Invalid value for `:fallback`"}
+
       true ->
         {:ok, config}
     end
@@ -57,7 +60,9 @@ defmodule Sievex.Evaluator do
     {fallback, "fallback"}
   end
 
-  def apply_ruleset(%__MODULE__{args: args, ruleset: [rule | remaining_ruleset], arity: arity} = config) do
+  def apply_ruleset(
+        %__MODULE__{args: args, ruleset: [rule | remaining_ruleset], arity: arity} = config
+      ) do
     rule
     |> apply_rule(args, arity)
     |> case do
