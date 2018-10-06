@@ -41,7 +41,7 @@ defmodule SievexTest.Evaluator do
         ruleset: []
       }
 
-      assert Evaluator.apply_ruleset(config) == {:deny, "no matching rules found, using fallback"}
+      assert Evaluator.apply_ruleset(config) == {:deny, "fallback"}
     end
 
     test "auto-wrap when the rule returns a bare atom" do

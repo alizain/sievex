@@ -1,9 +1,9 @@
 defmodule Sievex.Evaluator do
+  @arity 3
+
   alias Sievex.Errors
 
   defstruct args: [], ruleset: [], fallback: :deny
-
-  @arity 3
 
   @meaningful_results [:deny, :allow]
   @passthrough_result nil
@@ -56,7 +56,7 @@ defmodule Sievex.Evaluator do
   end
 
   def apply_ruleset(%__MODULE__{ruleset: [], fallback: fallback}) do
-    {fallback, "no matching rules found, using fallback"}
+    {fallback, "fallback"}
   end
 
   def apply_ruleset(%__MODULE__{args: args, ruleset: [rule | remaining_ruleset]} = config) do

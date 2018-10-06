@@ -13,7 +13,10 @@ defmodule Sievex.Ruleset do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    context = env.module
+    func_args = Macro.generate_arguments(@arity, context)
+    func_name = :apply
     quote do
       def opts do
         @sievex_opts
@@ -23,13 +26,9 @@ defmodule Sievex.Ruleset do
         @sievex_ruleset |> Enum.reverse()
       end
 
-      def apply(actor, action, subject) do
-        Sievex.Evaluator.evaluate([actor, action, subject], ruleset(), opts())
+      def unquote(func_name)(unquote_splicing(func_args)) do
+        Sievex.Evaluator.evaluate(unquote(func_args), ruleset(), opts())
       end
-
-      # def apply(context) do
-      #   Sievex.Evaluator.evaluate([context], ruleset(), opts())
-      # end
     end
   end
 
@@ -39,10 +38,8 @@ defmodule Sievex.Ruleset do
     end
   end
 
-  # TODO: Learn more about how context works!
   defmacro check(description, expr) do
-    context = nil
-    # [context | _] = __CALLER__.context_modules
+    context = __CALLER__.module
     func_args = Macro.generate_arguments(@arity, context)
     func_name = String.to_atom("auto check " <> description)
     func_anon = Sievex.Expression.compile(expr, context)
