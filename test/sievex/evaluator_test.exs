@@ -3,6 +3,17 @@ defmodule SievexTest.Evaluator do
   import ExUnit.CaptureLog, only: [capture_log: 1]
   alias Sievex.Evaluator
 
+  describe "`evaluate/3`" do
+    test "returns error tuple with for invalid config" do
+      assert {:error, "Invalid value for `:fallback`"} == Evaluator.evaluate([], [], fallback: nil)
+      assert {:error, "Invalid value for `:fallback`"} == Evaluator.evaluate([], [], %{fallback: nil})
+    end
+
+    test "applies ruleset with a different arity" do
+      assert {:allow, nil} == Evaluator.evaluate([1], [fn 1 -> :allow end], %{fallback: :deny, arity: 1})
+    end
+  end
+
   describe "`validate_config/1`" do
     test "raises when `:fallback` is invalid" do
       [

@@ -10,14 +10,15 @@ defmodule Sievex.Evaluator do
 
   def evaluate(args, ruleset, opts) do
     opts
-    |> Map.merge(%{
-      args: args,
-      ruleset: ruleset
-    })
     |> validate_config()
     |> case do
       {:ok, config} ->
-        apply_ruleset(config)
+        config
+        |> Map.merge(%{
+          args: args,
+          ruleset: ruleset
+        })
+        |> apply_ruleset()
 
       {:error, _reason} = error ->
         error
@@ -90,11 +91,11 @@ defmodule Sievex.Evaluator do
     end
   end
 
-  def apply_rule(func, args) when is_function(func) do
+  def apply_rule(func, args, _arity) when is_function(func) do
     apply(func, args)
   end
 
-  def apply_rule(_rule, _args) do
+  def apply_rule(_rule, _args, _arity) do
     raise Errors.RuleError, "invalid rule"
   end
 end
