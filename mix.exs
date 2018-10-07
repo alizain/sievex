@@ -9,7 +9,7 @@ defmodule Sievex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: [
-        test: ["test --trace"]
+        test: ["test --trace --cover"]
       ]
     ]
   end
