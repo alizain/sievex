@@ -2,7 +2,8 @@ defmodule Sievex do
   require Logger
 
   @default_opts [
-    noop: :pass,
+    log_compiled_sieve: true,
+    continue: :pass,
     fallback: nil
   ]
 
@@ -21,48 +22,55 @@ defmodule Sievex do
 
     {func_name, func_args} = Macro.decompose_call(method)
 
-    case Keyword.fetch(opts, :do) do
-      {:ok, func_clauses} ->
-        body =
-          generate_body(func_clauses, func_args, opts)
+    body =
+      case Keyword.fetch(opts, :do) do
+        # For no do-blocks
+        :error ->
+          Keyword.fetch!(opts, :fallback)
 
-        quoted =
-          quote do
-            def unquote(func_name)(unquote_splicing(func_args)) do
-              unquote(body)
-            end
+        # For empty do-blocks
+        {:ok, {:__block__, _, []}} ->
+          Keyword.fetch!(opts, :fallback)
+
+        {:ok, func_clauses} ->
+          if is_valid_syntax?(func_clauses) do
+            generate_body(func_clauses, func_args, opts)
+          else
+            raise SyntaxError, line: __CALLER__.line, file: __CALLER__.file, description: "Invalid syntax in #{module_func_name(__CALLER__, func_name, func_args)} sieve"
           end
+      end
 
-        IO.puts ""
-        quoted |> Macro.to_string |> IO.puts
-        IO.puts ""
+    quoted =
+      quote do
+        def unquote(func_name)(unquote_splicing(func_args)) do
+          unquote(body)
+        end
+      end
 
-        quoted
-
-      :error ->
-        Logger.warn "no implementation provided for #{func_name}"
+    if Keyword.fetch!(opts, :log_compiled_sieve) do
+      IO.puts "\n# Generated sieve for #{module_func_name(__CALLER__, func_name, func_args)}\n#{Macro.to_string(quoted)}"
     end
+
+    quoted
   end
 
-  # For empty do-blocks
-  def generate_body({:__block__, _, []}, _func_args, opts) do
-    Keyword.fetch!(opts, :fallback)
+  def is_valid_syntax?(func_clauses) when is_list(func_clauses) do
+    Enum.all?(func_clauses, fn
+      {:->, _, _} -> true
+      clause -> false
+    end)
   end
 
-  # For do-blocks that don't contain clauses
-  def generate_body({:__block__, _, _} = func_clauses, _func_args, _opts) do
-    Logger.warn "Invalid block syntax"
+  def is_valid_syntax?(_func_clauses) do
+    false
   end
 
-  # For do-blocks that contain other things
-  def generate_body(nil, _func_args, _opts) do
-    Logger.warn "Invalid nil syntax"
-  end
-
-  # The happy path
   def generate_body(func_clauses, func_args, opts) when is_list(func_clauses) do
-    noop = Keyword.fetch!(opts, :noop)
-    match_always_clause = generate_match_always_clause(length(func_args), noop)
+    continue =
+      Keyword.fetch!(opts, :continue)
+
+    match_always_clause =
+      generate_match_always_clause(length(func_args), continue)
 
     func_clauses
     |> Enum.map(&generate_tupelized_clause/1)
@@ -79,8 +87,8 @@ defmodule Sievex do
   end
 
   def generate_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
-    noop =
-      Keyword.fetch!(opts, :noop)
+    continue =
+      Keyword.fetch!(opts, :continue)
 
     match_always_clause =
       Keyword.fetch!(opts, :match_always_clause)
@@ -99,12 +107,11 @@ defmodule Sievex do
 
     cases =
       quote do
-        {unquote_splicing(func_args)}
-        |> case do
+        case {unquote_splicing(func_args)} do
           unquote(clauses)
         end
         |> case do
-          unquote(noop) ->
+          unquote(continue) ->
             unquote(fallback_clause)
 
           result ->
@@ -115,20 +122,24 @@ defmodule Sievex do
     generate_nested_cases(rem_clauses, func_args, opts, cases)
   end
 
-  defp generate_noop_vars(arity) do
+  defp generate_continue_vars(arity) do
     Enum.map(0..(arity - 1), fn _ ->
       Macro.var(:_, nil)
     end)
   end
 
-  defp generate_match_always_clause(arity, noop) do
-    noop_vars = generate_noop_vars(arity)
+  defp generate_match_always_clause(arity, continue) do
+    continue_vars = generate_continue_vars(arity)
     quote do
-      {unquote_splicing(noop_vars)} -> unquote(noop)
+      {unquote_splicing(continue_vars)} -> unquote(continue)
     end
   end
 
   defp generate_tupelized_clause({:->, opts, [vars | body]}) do
     {:->, opts, [[List.to_tuple(vars)]] ++ body}
   end
+
+  defp module_name(%{module: module}), do: module_name(module)
+  defp module_name(module) when is_atom(module), do: module |> Module.split |> Enum.join(".")
+  defp module_func_name(module, func_name, func_args), do: "#{module_name(module)}.#{func_name}/#{length(func_args)}"
 end

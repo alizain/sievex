@@ -1,3 +1,5 @@
+Faker.start()
+
 defmodule SievexBench.Sievex do
   import Sievex
 
@@ -19,8 +21,13 @@ defmodule SievexBench.Sievex do
   end
 end
 
-Benchee.run(%{
-  "Sievex" => fn ->
-    SievexBench.Sievex.something(:a, 2)
-  end,
-}, warmup: 2, time: 5)
+Benchee.run(
+  %{
+    "Sievex" => fn {digit, letter}->
+      SievexBench.Sievex.something(digit, letter)
+    end,
+  },
+  before_each: fn _input -> {Faker.Util.digit(), Faker.Util.letter()} end,
+  warmup: 2,
+  time: 5
+)
