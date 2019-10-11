@@ -14,7 +14,8 @@ defmodule SievexTest.Sievex do
 
   describe "empty do-block" do
     defmodule TestModuleEmptyDoBlock do
-      defsieve something(_user_id, _subject_id), fallback: :deny_empty, continue: nil do end
+      defsieve something(_user_id, _subject_id), fallback: :deny_empty, continue: nil do
+      end
     end
 
     test "shows fallback correctly" do

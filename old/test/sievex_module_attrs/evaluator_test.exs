@@ -5,12 +5,16 @@ defmodule SievexModuleAttrsTest.Evaluator do
 
   describe "`evaluate/3`" do
     test "returns error tuple with for invalid config" do
-      assert {:error, "Invalid value for `:fallback`"} == Evaluator.evaluate([], [], fallback: nil)
-      assert {:error, "Invalid value for `:fallback`"} == Evaluator.evaluate([], [], %{fallback: nil})
+      assert {:error, "Invalid value for `:fallback`"} ==
+               Evaluator.evaluate([], [], fallback: nil)
+
+      assert {:error, "Invalid value for `:fallback`"} ==
+               Evaluator.evaluate([], [], %{fallback: nil})
     end
 
     test "applies ruleset with a different arity" do
-      assert {:allow, nil} == Evaluator.evaluate([1], [fn 1 -> :allow end], %{fallback: :deny, arity: 1})
+      assert {:allow, nil} ==
+               Evaluator.evaluate([1], [fn 1 -> :allow end], %{fallback: :deny, arity: 1})
     end
   end
 

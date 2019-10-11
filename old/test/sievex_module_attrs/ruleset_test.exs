@@ -99,11 +99,11 @@ defmodule SievexModuleAttrsTest.Ruleset do
 
       @some_constant [:apple]
 
-      check "yahooza", (fruit ->
-        if fruit in @some_constant and is_possible?() do
-          :allow
-        end
-      )
+      check "yahooza",
+            (fruit ->
+               if fruit in @some_constant and is_possible?() do
+                 :allow
+               end)
 
       def is_possible?(), do: true
     end

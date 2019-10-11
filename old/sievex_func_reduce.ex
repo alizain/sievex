@@ -43,15 +43,14 @@ defmodule SievexFuncReduce do
     func_arity = length(func_args)
     func_body = Keyword.fetch!(body, :do)
 
-    exprs =
-      Enum.map(func_body, &Expression.compile(&1, func_arity, nil, opts))
+    exprs = Enum.map(func_body, &Expression.compile(&1, func_arity, nil, opts))
 
     quoted =
-    quote do
-      def unquote(func_name)(unquote_splicing(func_args)) do
-        SievexFuncReduce.execute(unquote(exprs), unquote(func_args), unquote(opts))
+      quote do
+        def unquote(func_name)(unquote_splicing(func_args)) do
+          SievexFuncReduce.execute(unquote(exprs), unquote(func_args), unquote(opts))
+        end
       end
-    end
 
     # Macro.to_string(quoted) |> IO.puts
 
@@ -64,6 +63,7 @@ defmodule SievexFuncReduce do
 
   def execute([expr | rem_exprs], func_args, opts) do
     noop = Keyword.fetch!(opts, :noop)
+
     case apply(expr, func_args) do
       ^noop ->
         execute(rem_exprs, func_args, opts)

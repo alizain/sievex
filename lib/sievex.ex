@@ -2,13 +2,14 @@ defmodule Sievex do
   require Logger
 
   @default_opts [
-    log_compiled_sieve: true,
+    log_compiled_sieve: false,
     continue: :pass,
     fallback: nil
   ]
 
   defmacro defsieve(method, opts, body) do
     opts = opts ++ body
+
     quote do
       defsieve(unquote(method), unquote(opts))
     end
@@ -22,6 +23,8 @@ defmodule Sievex do
 
     {func_name, func_args} = Macro.decompose_call(method)
 
+    module_func_name = gen_module_func_name(__CALLER__, func_name, func_args)
+
     body =
       case Keyword.fetch(opts, :do) do
         # For no do-blocks
@@ -34,9 +37,12 @@ defmodule Sievex do
 
         {:ok, func_clauses} ->
           if is_valid_syntax?(func_clauses) do
-            generate_body(func_clauses, func_args, opts)
+            gen_body(func_clauses, func_args, opts)
           else
-            raise SyntaxError, line: __CALLER__.line, file: __CALLER__.file, description: "Invalid syntax in #{module_func_name(__CALLER__, func_name, func_args)} sieve"
+            raise SyntaxError,
+              line: __CALLER__.line,
+              file: __CALLER__.file,
+              description: "Invalid syntax in #{module_func_name} sieve"
           end
       end
 
@@ -48,7 +54,7 @@ defmodule Sievex do
       end
 
     if Keyword.fetch!(opts, :log_compiled_sieve) do
-      IO.puts "\n# Generated sieve for #{module_func_name(__CALLER__, func_name, func_args)}\n#{Macro.to_string(quoted)}"
+      IO.puts("\n# Generated sieve for #{module_func_name}\n#{Macro.to_string(quoted)}")
     end
 
     quoted
@@ -57,7 +63,7 @@ defmodule Sievex do
   def is_valid_syntax?(func_clauses) when is_list(func_clauses) do
     Enum.all?(func_clauses, fn
       {:->, _, _} -> true
-      clause -> false
+      _clause -> false
     end)
   end
 
@@ -65,36 +71,31 @@ defmodule Sievex do
     false
   end
 
-  def generate_body(func_clauses, func_args, opts) when is_list(func_clauses) do
-    continue =
-      Keyword.fetch!(opts, :continue)
+  def gen_body(func_clauses, func_args, opts) when is_list(func_clauses) do
+    continue = Keyword.fetch!(opts, :continue)
 
-    match_always_clause =
-      generate_match_always_clause(length(func_args), continue)
+    match_always_clause = gen_match_always_clause(length(func_args), continue)
 
     func_clauses
-    |> Enum.map(&generate_tupelized_clause/1)
-    |> Enum.reverse
-    |> generate_nested_cases(func_args, [match_always_clause: match_always_clause] ++ opts)
+    |> Enum.map(&gen_tupelized_clause/1)
+    |> Enum.reverse()
+    |> gen_nested_cases(func_args, [match_always_clause: match_always_clause] ++ opts)
   end
 
-  def generate_nested_cases(func_clauses, func_args, opts) do
-    generate_nested_cases(func_clauses, func_args, opts, nil)
+  def gen_nested_cases(func_clauses, func_args, opts) do
+    gen_nested_cases(func_clauses, func_args, opts, nil)
   end
 
-  def generate_nested_cases([], _func_args, _opts, acc) do
+  def gen_nested_cases([], _func_args, _opts, acc) do
     acc
   end
 
-  def generate_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
-    continue =
-      Keyword.fetch!(opts, :continue)
+  def gen_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
+    continue = Keyword.fetch!(opts, :continue)
 
-    match_always_clause =
-      Keyword.fetch!(opts, :match_always_clause)
+    match_always_clause = Keyword.fetch!(opts, :match_always_clause)
 
-    clauses =
-      [this_clause] ++ match_always_clause
+    clauses = [this_clause] ++ match_always_clause
 
     fallback_clause =
       case acc do
@@ -119,27 +120,36 @@ defmodule Sievex do
         end
       end
 
-    generate_nested_cases(rem_clauses, func_args, opts, cases)
+    gen_nested_cases(rem_clauses, func_args, opts, cases)
   end
 
-  defp generate_continue_vars(arity) do
+  defp gen_continue_vars(arity) do
     Enum.map(0..(arity - 1), fn _ ->
       Macro.var(:_, nil)
     end)
   end
 
-  defp generate_match_always_clause(arity, continue) do
-    continue_vars = generate_continue_vars(arity)
+  defp gen_match_always_clause(arity, continue) do
+    continue_vars = gen_continue_vars(arity)
+
     quote do
       {unquote_splicing(continue_vars)} -> unquote(continue)
     end
   end
 
-  defp generate_tupelized_clause({:->, opts, [vars | body]}) do
+  defp gen_tupelized_clause({:->, opts, [vars | body]}) do
     {:->, opts, [[List.to_tuple(vars)]] ++ body}
   end
 
-  defp module_name(%{module: module}), do: module_name(module)
-  defp module_name(module) when is_atom(module), do: module |> Module.split |> Enum.join(".")
-  defp module_func_name(module, func_name, func_args), do: "#{module_name(module)}.#{func_name}/#{length(func_args)}"
+  defp gen_module_name(%{module: module}) do
+    gen_module_name(module)
+  end
+
+  defp gen_module_name(module) when is_atom(module) do
+    module |> Module.split() |> Enum.join(".")
+  end
+
+  defp gen_module_func_name(module, func_name, func_args) do
+    "#{gen_module_name(module)}.#{func_name}/#{length(func_args)}"
+  end
 end

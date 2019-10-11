@@ -23,9 +23,9 @@ end
 
 Benchee.run(
   %{
-    "Sievex" => fn {digit, letter}->
+    "Sievex" => fn {digit, letter} ->
       SievexBench.Sievex.something(digit, letter)
-    end,
+    end
   },
   before_each: fn _input -> {Faker.Util.digit(), Faker.Util.letter()} end,
   warmup: 2,

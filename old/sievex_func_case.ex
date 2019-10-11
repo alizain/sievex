@@ -48,7 +48,6 @@ defmodule SievexFuncCase do
       |> Enum.map(&Expression.compile(&1, func_arity, nil, opts))
       |> generate_nested(func_args, opts)
 
-
     quoted =
       quote do
         def unquote(func_name)(unquote_splicing(func_args)) do
@@ -68,6 +67,7 @@ defmodule SievexFuncCase do
   def generate_nested([expr | rem_exprs], func_args, opts) do
     noop = Keyword.fetch!(opts, :noop)
     nested = generate_nested(rem_exprs, func_args, opts)
+
     quote do
       case unquote(expr).(unquote_splicing(func_args)) do
         unquote(noop) ->
