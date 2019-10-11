@@ -1,4 +1,4 @@
-defmodule Sievex.Expression do
+defmodule SievexModuleAttrs.Expression do
   def no_op(arity, context) do
     variables =
       Enum.map(0..(arity - 1), fn _ ->

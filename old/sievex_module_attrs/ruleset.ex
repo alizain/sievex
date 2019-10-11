@@ -1,9 +1,9 @@
-defmodule Sievex.Ruleset do
+defmodule SievexModuleAttrs.Ruleset do
   @apply_fn_name :apply
 
   defmacro __using__(opts) do
     quote location: :keep do
-      import Sievex.Ruleset
+      import SievexModuleAttrs.Ruleset
 
       Module.register_attribute(__MODULE__, :sievex_raw, accumulate: true)
       Module.register_attribute(__MODULE__, :sievex_ruleset, accumulate: true)
@@ -11,10 +11,10 @@ defmodule Sievex.Ruleset do
       Module.put_attribute(
         __MODULE__,
         :sievex_opts,
-        Sievex.Evaluator.validate_config!(unquote(opts))
+        SievexModuleAttrs.Evaluator.validate_config!(unquote(opts))
       )
 
-      @before_compile Sievex.Ruleset
+      @before_compile SievexModuleAttrs.Ruleset
     end
   end
 
@@ -61,7 +61,7 @@ defmodule Sievex.Ruleset do
   def generate_rule({description, expr}, arity, context) do
     func_args = Macro.generate_arguments(arity, context)
     func_name = String.to_atom("auto check " <> description)
-    func_anon = Sievex.Expression.compile(expr, arity, context)
+    func_anon = SievexModuleAttrs.Expression.compile(expr, arity, context)
 
     quote do
       def unquote(func_name)(unquote_splicing(func_args)) do
@@ -77,7 +77,7 @@ defmodule Sievex.Ruleset do
 
     quote do
       def unquote(func_name)(unquote_splicing(func_args)) do
-        Sievex.Evaluator.evaluate(unquote(func_args), ruleset(), opts())
+        SievexModuleAttrs.Evaluator.evaluate(unquote(func_args), ruleset(), opts())
       end
     end
   end

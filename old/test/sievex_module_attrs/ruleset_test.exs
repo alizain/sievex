@@ -1,9 +1,9 @@
-defmodule SievexTest.Ruleset do
+defmodule SievexModuleAttrsTest.Ruleset do
   use ExUnit.Case
 
   describe "TestA" do
     defmodule TestA do
-      use Sievex.Ruleset, arity: 2, fallback: :deny
+      use SievexModuleAttrs.Ruleset, arity: 2, fallback: :deny
     end
 
     test "defines `ruleset/0`" do
@@ -21,7 +21,7 @@ defmodule SievexTest.Ruleset do
 
   describe "TestB" do
     defmodule TestB do
-      use Sievex.Ruleset, arity: 3, fallback: :allow
+      use SievexModuleAttrs.Ruleset, arity: 3, fallback: :allow
 
       check :check_thing
 
@@ -55,7 +55,7 @@ defmodule SievexTest.Ruleset do
     end
 
     defmodule TestC do
-      use Sievex.Ruleset, arity: 1, fallback: :deny
+      use SievexModuleAttrs.Ruleset, arity: 1, fallback: :deny
 
       check "suzuki", &TestCPermissions.suzuki/1
     end
@@ -76,7 +76,7 @@ defmodule SievexTest.Ruleset do
 
   describe "TestD" do
     defmodule TestD do
-      use Sievex.Ruleset, arity: 2, fallback: :deny
+      use SievexModuleAttrs.Ruleset, arity: 2, fallback: :deny
 
       check "kilimanjaro", (user, _action when user in [1, 2] -> :allow)
     end
@@ -90,6 +90,27 @@ defmodule SievexTest.Ruleset do
     test "apply/2 works correctly" do
       assert {:allow, nil} == TestD.apply(1, :save)
       assert {:deny, "fallback"} == TestD.apply(4, :save)
+    end
+  end
+
+  describe "TestE" do
+    defmodule TestE do
+      use SievexModuleAttrs.Ruleset, arity: 1, fallback: :deny
+
+      @some_constant [:apple]
+
+      check "yahooza", (fruit ->
+        if fruit in @some_constant and is_possible?() do
+          :allow
+        end
+      )
+
+      def is_possible?(), do: true
+    end
+
+    test "apply/2 works correctly with complex, multi-line expressions" do
+      assert {:allow, nil} == TestE.apply(:apple)
+      assert {:deny, "fallback"} == TestE.apply(:banana)
     end
   end
 end

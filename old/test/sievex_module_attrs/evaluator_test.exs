@@ -1,7 +1,7 @@
-defmodule SievexTest.Evaluator do
+defmodule SievexModuleAttrsTest.Evaluator do
   use ExUnit.Case
   import ExUnit.CaptureLog, only: [capture_log: 1]
-  alias Sievex.Evaluator
+  alias SievexModuleAttrs.Evaluator
 
   describe "`evaluate/3`" do
     test "returns error tuple with for invalid config" do

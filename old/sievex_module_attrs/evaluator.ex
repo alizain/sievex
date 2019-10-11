@@ -1,5 +1,5 @@
-defmodule Sievex.Evaluator do
-  alias Sievex.Errors
+defmodule SievexModuleAttrs.Evaluator do
+  alias SievexModuleAttrs.Errors
 
   defstruct args: [], ruleset: [], fallback: :deny, arity: 3
 

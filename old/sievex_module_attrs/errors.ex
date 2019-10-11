@@ -1,4 +1,4 @@
-defmodule Sievex.Errors do
+defmodule SievexModuleAttrs.Errors do
   defmodule RuleError do
     defexception [:message]
 
