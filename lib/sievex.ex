@@ -22,7 +22,7 @@ defmodule Sievex do
     return_wrapped: false,
     return_metadata: false,
     continue: :pass,
-    fallback: nil,
+    fallback: nil
   ]
 
   @doc ~S"""
@@ -92,7 +92,9 @@ defmodule Sievex do
 
   defp validate_syntax!(func_clauses, env) when is_list(func_clauses) do
     Enum.each(func_clauses, fn
-      {:->, _, _} -> nil
+      {:->, _, _} ->
+        nil
+
       {_, opts, _} ->
         raise SyntaxError,
           line: Keyword.get(opts, :line, env.line),
@@ -127,7 +129,9 @@ defmodule Sievex do
           {filtered_clause_block_body, filtered_clause_metadata} =
             extract_metadata_from_block(clause_block_body)
 
-          {[{:__block__, clause_block_opts, filtered_clause_block_body}], filtered_clause_metadata}
+          filtered = [{:__block__, clause_block_opts, filtered_clause_block_body}]
+
+          {filtered, filtered_clause_metadata}
 
         clause_rem ->
           extract_metadata_from_block(clause_rem)
@@ -143,7 +147,7 @@ defmodule Sievex do
           # inject a nil statement.
           IO.warn(
             "an expression is always required on the right side of ->. " <>
-            "Please provide a value after ->",
+              "Please provide a value after ->",
             Macro.Env.stacktrace(%{env | line: Keyword.fetch!(clause_opts, :line)})
           )
 
@@ -171,7 +175,7 @@ defmodule Sievex do
 
   defp gen_nested_cases(func_clauses, func_args, opts) do
     func_clauses
-    |> Enum.reverse
+    |> Enum.reverse()
     |> gen_nested_cases(func_args, opts, nil)
   end
 
@@ -262,8 +266,7 @@ defmodule Sievex do
   end
 
   defp gen_tupelized_clause({:->, opts, [[{:when, when_opts, when_body}] | body]}, arity) do
-    {vars, [{_, _, _}] = guard_clause} =
-      Enum.split(when_body, arity)
+    {vars, [{_, _, _}] = guard_clause} = Enum.split(when_body, arity)
 
     when_clause = {:when, when_opts, [List.to_tuple(vars) | guard_clause]}
 

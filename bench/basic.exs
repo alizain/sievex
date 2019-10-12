@@ -69,7 +69,7 @@ Benchee.run(
     end,
     "SievexFuncReduce" => fn {digit, letter} ->
       Cases.SievexFuncReduce.something(digit, letter)
-    end,
+    end
   },
   before_each: fn _input -> {Faker.Util.digit(), Faker.Util.letter()} end,
   warmup: 2,

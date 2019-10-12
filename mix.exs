@@ -12,7 +12,7 @@ defmodule Sievex.MixProject do
       source_url: "https://github.com/alizain/sievex",
       homepage_url: "https://YOUR_PROJECT_HOMEPAGE",
       docs: [
-        main: "Sievex",
+        main: "Sievex"
         # api_reference: false,
       ],
       aliases: [
@@ -31,7 +31,7 @@ defmodule Sievex.MixProject do
     [
       {:benchee, "~> 1.0", only: :dev},
       {:faker, "~> 0.13", only: :dev},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.21", only: :dev, runtime: false}
     ]
   end
 end

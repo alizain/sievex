@@ -94,11 +94,15 @@ defmodule SievexTest.Sievex do
 
   describe "metadata" do
     defmodule TestModuleMetadata do
-      defsieve something(user_id, subject_id), fallback: :deny, continue: :pass, return_wrapped: true, return_metadata: true do
+      defsieve something(user_id, subject_id),
+        fallback: :deny,
+        continue: :pass,
+        return_wrapped: true,
+        return_metadata: true do
         2, subject_id when is_number(subject_id) and subject_id in [3, 4] ->
           @sievedoc "the base case"
 
-          (1 + 1) |> IO.puts
+          (1 + 1) |> IO.puts()
 
           :allow
 
@@ -118,10 +122,18 @@ defmodule SievexTest.Sievex do
     test "works as expected" do
       assert {:fallback, :deny} == TestModuleMetadata.something(1, 0)
       assert {:fallback, :deny} == TestModuleMetadata.something(2, 2)
-      assert {:result, :allow, %Sievex.Metadata{doc: "the base case"}} == TestModuleMetadata.something(2, 3)
-      assert {:result, :maybe, %Sievex.Metadata{doc: "another case"}} == TestModuleMetadata.something(3, 0)
-      assert {:result, :oops, %Sievex.Metadata{doc: nil}} == TestModuleMetadata.something(4, 0)
-      assert {:result, nil, %Sievex.Metadata{doc: "just this, and nothing else"}} == TestModuleMetadata.something(5, 0)
+
+      assert {:result, :allow, meta} = TestModuleMetadata.something(2, 3)
+      assert meta.doc == "the base case"
+
+      assert {:result, :maybe, meta} = TestModuleMetadata.something(3, 0)
+      assert meta.doc == "another case"
+
+      assert {:result, :oops, meta} = TestModuleMetadata.something(4, 0)
+      assert meta.doc == nil
+
+      assert {:result, nil, meta} = TestModuleMetadata.something(5, 0)
+      assert meta.doc == "just this, and nothing else"
     end
   end
 end
