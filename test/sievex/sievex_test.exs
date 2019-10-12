@@ -91,4 +91,37 @@ defmodule SievexTest.Sievex do
       assert :deny == TestModuleContinue.something(2, 0)
     end
   end
+
+  describe "metadata" do
+    defmodule TestModuleMetadata do
+      defsieve something(user_id, subject_id), fallback: :deny, continue: :pass, return_wrapped: true, return_metadata: true do
+        2, subject_id when is_number(subject_id) and subject_id in [3, 4] ->
+          @sievedoc "the base case"
+
+          (1 + 1) |> IO.puts
+
+          :allow
+
+        3, _ ->
+          @sievedoc "another case"
+
+          :maybe
+
+        4, _ ->
+          :oops
+
+        5, _ ->
+          @sievedoc "just this, and nothing else"
+      end
+    end
+
+    test "works as expected" do
+      assert {:fallback, :deny} == TestModuleMetadata.something(1, 0)
+      assert {:fallback, :deny} == TestModuleMetadata.something(2, 2)
+      assert {:result, :allow, %Sievex.Metadata{doc: "the base case"}} == TestModuleMetadata.something(2, 3)
+      assert {:result, :maybe, %Sievex.Metadata{doc: "another case"}} == TestModuleMetadata.something(3, 0)
+      assert {:result, :oops, %Sievex.Metadata{doc: nil}} == TestModuleMetadata.something(4, 0)
+      assert {:result, nil, %Sievex.Metadata{doc: "just this, and nothing else"}} == TestModuleMetadata.something(5, 0)
+    end
+  end
 end

@@ -1,3 +1,14 @@
+# The story:
+# - as a module
+# - as defsieve with anon funcs and Enum.reduce
+# - switch to anon funcs and case statements
+# - switch to pure case statements with {} wrapping
+# - sievedocs
+# - better error reporting with __CALLER__
+# - damn guards, back to anon funcs?
+# - okay, guard clauses works with cases and {} wrapping!
+# - optional wrapped result, and optional metadata!
+
 defmodule Sievex do
   @moduledoc ~S"""
   Define functions where _all_ matching clauses are executed in order until
@@ -8,8 +19,10 @@ defmodule Sievex do
 
   @default_opts [
     log_compiled_sieve: false,
+    return_wrapped: false,
+    return_metadata: false,
     continue: :pass,
-    fallback: nil
+    fallback: nil,
   ]
 
   @doc ~S"""
@@ -49,19 +62,14 @@ defmodule Sievex do
 
         # All other cases
         {:ok, func_clauses} ->
-          if is_valid_syntax?(func_clauses) do
-            gen_body(func_clauses, func_args, opts)
-          else
-            raise SyntaxError,
-              line: __CALLER__.line,
-              file: __CALLER__.file,
-              description: "Invalid syntax in #{module_func_name} sieve"
-          end
+          validate_syntax!(func_clauses, __CALLER__)
+
+          gen_body(func_clauses, func_args, opts, __CALLER__)
       end
 
     quoted =
       quote do
-        defp unquote(func_name)(unquote_splicing(func_args)) do
+        def unquote(func_name)(unquote_splicing(func_args)) do
           unquote(body)
         end
       end
@@ -82,51 +90,145 @@ defmodule Sievex do
     end
   end
 
-  defp is_valid_syntax?(func_clauses) when is_list(func_clauses) do
-    Enum.all?(func_clauses, fn
-      {:->, _, _} -> true
-      _clause -> false
+  defp validate_syntax!(func_clauses, env) when is_list(func_clauses) do
+    Enum.each(func_clauses, fn
+      {:->, _, _} -> nil
+      {_, opts, _} ->
+        raise SyntaxError,
+          line: Keyword.get(opts, :line, env.line),
+          file: env.file,
+          description: "Invalid syntax for sieve"
     end)
   end
 
-  defp is_valid_syntax?(_func_clauses) do
-    false
+  defp validate_syntax!(_func_clauses, env) do
+    raise SyntaxError,
+      line: env.line,
+      file: env.file,
+      description: "Invalid syntax for sieve"
   end
 
-  defp gen_body(func_clauses, func_args, opts) when is_list(func_clauses) do
+  defp gen_body(func_clauses, func_args, opts, env) when is_list(func_clauses) do
     continue = Keyword.fetch!(opts, :continue)
 
-    match_always_clause = gen_match_always_clause(length(func_args), continue)
+    func_arity = length(func_args)
+    match_always_clause = gen_match_always_clause(func_arity, continue)
 
     func_clauses
-    |> Enum.map(&gen_tupelized_clause/1)
-    |> Enum.reverse()
+    |> Enum.map(&gen_tupelized_clause(&1, func_arity))
+    |> Enum.map(&gen_clause_metadata(&1, env))
     |> gen_nested_cases(func_args, [match_always_clause: match_always_clause] ++ opts)
   end
 
+  defp gen_clause_metadata({:->, clause_opts, [clause_head | clause_rem]}, env) do
+    {filtered_clause_rem, filtered_clause_metadata} =
+      case clause_rem do
+        [{:__block__, clause_block_opts, clause_block_body}] ->
+          {filtered_clause_block_body, filtered_clause_metadata} =
+            extract_metadata_from_block(clause_block_body)
+
+          {[{:__block__, clause_block_opts, filtered_clause_block_body}], filtered_clause_metadata}
+
+        clause_rem ->
+          extract_metadata_from_block(clause_rem)
+      end
+      |> case do
+        {[], filtered_clause_metadata} ->
+          # We need to handle cases where users have added metadata statements, without
+          # any other information. Now the problem is that when the Elixir parser normally
+          # runs across such a case, it prints a warning and automatically injects a `nil`
+          # statement. This is not handled in the `case` statement itself. If we continue
+          # with the filtered list, Elixir will raise the following error (expected ->
+          # clauses for :do in "case"). So we will manually print the same error and
+          # inject a nil statement.
+          IO.warn(
+            "an expression is always required on the right side of ->. " <>
+            "Please provide a value after ->",
+            Macro.Env.stacktrace(%{env | line: Keyword.fetch!(clause_opts, :line)})
+          )
+
+          {[nil], filtered_clause_metadata}
+
+        filtered ->
+          filtered
+      end
+
+    {{:->, clause_opts, [clause_head] ++ filtered_clause_rem}, filtered_clause_metadata}
+  end
+
+  defp extract_metadata_from_block(block_stmts) do
+    {stmts, metadata} =
+      Enum.reduce(block_stmts, {[], %{}}, fn
+        {:@, _, [{:sievedoc, _, [doc_body]}]}, {acc_stmts, acc_metadata} ->
+          {acc_stmts, Map.put(acc_metadata, :doc, doc_body)}
+
+        stmt, {acc_stmts, acc_metadata} ->
+          {[stmt | acc_stmts], acc_metadata}
+      end)
+
+    {Enum.reverse(stmts), metadata}
+  end
+
   defp gen_nested_cases(func_clauses, func_args, opts) do
-    gen_nested_cases(func_clauses, func_args, opts, nil)
+    func_clauses
+    |> Enum.reverse
+    |> gen_nested_cases(func_args, opts, nil)
   end
 
   defp gen_nested_cases([], _func_args, _opts, acc) do
     acc
   end
 
-  defp gen_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
+  defp gen_nested_cases([{this_clause, this_metadata} | rem_clauses], func_args, opts, acc) do
     continue = Keyword.fetch!(opts, :continue)
-
     match_always_clause = Keyword.fetch!(opts, :match_always_clause)
+    return_wrapped = Keyword.fetch!(opts, :return_wrapped)
+    return_metadata = Keyword.fetch!(opts, :return_metadata)
 
-    clauses = [this_clause] ++ match_always_clause
+    quoted_metadata =
+      quote do
+        %Sievex.Metadata{
+          doc: unquote(this_metadata[:doc])
+        }
+      end
 
-    fallback_clause =
+    fallback_body =
       case acc do
         nil ->
-          Keyword.fetch!(opts, :fallback)
+          if return_wrapped == true do
+            {:fallback, Keyword.fetch!(opts, :fallback)}
+          else
+            Keyword.fetch!(opts, :fallback)
+          end
 
         _acc ->
           acc
       end
+
+    result_clause =
+      cond do
+        return_wrapped == true && return_metadata == true ->
+          quote do
+            {:result, result, unquote(quoted_metadata)}
+          end
+
+        return_wrapped == true ->
+          quote do
+            {:result, result}
+          end
+
+        return_metadata == true ->
+          quote do
+            {result, unquote(quoted_metadata)}
+          end
+
+        true ->
+          quote do
+            result
+          end
+      end
+
+    clauses = [this_clause] ++ match_always_clause
 
     cases =
       quote do
@@ -135,10 +237,10 @@ defmodule Sievex do
         end
         |> case do
           unquote(continue) ->
-            unquote(fallback_clause)
+            unquote(fallback_body)
 
           result ->
-            result
+            unquote(result_clause)
         end
       end
 
@@ -159,8 +261,17 @@ defmodule Sievex do
     end
   end
 
-  defp gen_tupelized_clause({:->, opts, [vars | body]}) do
-    {:->, opts, [[List.to_tuple(vars)]] ++ body}
+  defp gen_tupelized_clause({:->, opts, [[{:when, when_opts, when_body}] | body]}, arity) do
+    {vars, [{_, _, _}] = guard_clause} =
+      Enum.split(when_body, arity)
+
+    when_clause = {:when, when_opts, [List.to_tuple(vars) | guard_clause]}
+
+    {:->, opts, [[when_clause] | body]}
+  end
+
+  defp gen_tupelized_clause({:->, opts, [vars | body]}, _arity) do
+    {:->, opts, [[List.to_tuple(vars)] | body]}
   end
 
   defp gen_module_name(%{module: module}) do
