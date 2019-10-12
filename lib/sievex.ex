@@ -1,4 +1,9 @@
 defmodule Sievex do
+  @moduledoc ~S"""
+  Define functions where _all_ matching clauses are executed in order until
+  the first one returns a result.
+  """
+
   require Logger
 
   @default_opts [
@@ -7,14 +12,21 @@ defmodule Sievex do
     fallback: nil
   ]
 
-  defmacro defsieve(method, opts, body) do
-    opts = opts ++ body
+  @doc ~S"""
+  Defines a sieve.
 
-    quote do
-      defsieve(unquote(method), unquote(opts))
-    end
-  end
+  ## Example
 
+      defsieve my_rules(user, subject) do
+        %User{is_admin: true}, _subject ->
+          :allow
+
+        %User{id: user_id}, %Post{created_by_id: ^user_id} ->
+          :allow
+      end
+
+      :allow == my_rules(%User{is_admin: true}, %Post{id: 7})
+  """
   defmacro defsieve(method, opts) do
     # Don't change this order! We rely on `Keyword.fetch/2` to return the first
     # matching key from a list, thereby implicitly always returning a passed-in
@@ -35,6 +47,7 @@ defmodule Sievex do
         {:ok, {:__block__, _, []}} ->
           Keyword.fetch!(opts, :fallback)
 
+        # All other cases
         {:ok, func_clauses} ->
           if is_valid_syntax?(func_clauses) do
             gen_body(func_clauses, func_args, opts)
@@ -48,7 +61,7 @@ defmodule Sievex do
 
     quoted =
       quote do
-        def unquote(func_name)(unquote_splicing(func_args)) do
+        defp unquote(func_name)(unquote_splicing(func_args)) do
           unquote(body)
         end
       end
@@ -60,18 +73,27 @@ defmodule Sievex do
     quoted
   end
 
-  def is_valid_syntax?(func_clauses) when is_list(func_clauses) do
+  @doc false
+  defmacro defsieve(method, opts, body) do
+    opts = opts ++ body
+
+    quote do
+      defsieve(unquote(method), unquote(opts))
+    end
+  end
+
+  defp is_valid_syntax?(func_clauses) when is_list(func_clauses) do
     Enum.all?(func_clauses, fn
       {:->, _, _} -> true
       _clause -> false
     end)
   end
 
-  def is_valid_syntax?(_func_clauses) do
+  defp is_valid_syntax?(_func_clauses) do
     false
   end
 
-  def gen_body(func_clauses, func_args, opts) when is_list(func_clauses) do
+  defp gen_body(func_clauses, func_args, opts) when is_list(func_clauses) do
     continue = Keyword.fetch!(opts, :continue)
 
     match_always_clause = gen_match_always_clause(length(func_args), continue)
@@ -82,15 +104,15 @@ defmodule Sievex do
     |> gen_nested_cases(func_args, [match_always_clause: match_always_clause] ++ opts)
   end
 
-  def gen_nested_cases(func_clauses, func_args, opts) do
+  defp gen_nested_cases(func_clauses, func_args, opts) do
     gen_nested_cases(func_clauses, func_args, opts, nil)
   end
 
-  def gen_nested_cases([], _func_args, _opts, acc) do
+  defp gen_nested_cases([], _func_args, _opts, acc) do
     acc
   end
 
-  def gen_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
+  defp gen_nested_cases([this_clause | rem_clauses], func_args, opts, acc) do
     continue = Keyword.fetch!(opts, :continue)
 
     match_always_clause = Keyword.fetch!(opts, :match_always_clause)
