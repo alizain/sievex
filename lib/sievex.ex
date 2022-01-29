@@ -74,7 +74,8 @@ defmodule Sievex do
 
     if Keyword.fetch!(opts, :log_compiled_sieve) do
       module_func_name = "#{gen_module_name(__CALLER__)}.#{func_name}/#{length(func_args)}"
-      IO.puts("\n# Generated sieve for #{module_func_name}\n#{quoted |> Macro.to_string() |> Code.format_string!}")
+      "Generated sieve for #{module_func_name}" |> IO.puts
+      quoted |> Macro.to_string() |> Code.format_string!(line_length: 140) |> IO.puts
     end
 
     quoted
