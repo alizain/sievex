@@ -48,8 +48,6 @@ defmodule Sievex do
 
     {func_name, func_args} = Macro.decompose_call(method)
 
-    module_func_name = gen_module_func_name(__CALLER__, func_name, func_args)
-
     body =
       case Keyword.fetch(opts, :do) do
         # For no do-blocks
@@ -75,6 +73,7 @@ defmodule Sievex do
       end
 
     if Keyword.fetch!(opts, :log_compiled_sieve) do
+      module_func_name = "#{gen_module_name(__CALLER__)}.#{func_name}/#{length(func_args)}"
       IO.puts("\n# Generated sieve for #{module_func_name}\n#{Macro.to_string(quoted)}")
     end
 
@@ -236,7 +235,8 @@ defmodule Sievex do
 
     cases =
       quote do
-        case {unquote_splicing(func_args)} do
+        {unquote_splicing(func_args)}
+        |> case do
           unquote(clauses)
         end
         |> case do
@@ -268,13 +268,23 @@ defmodule Sievex do
   defp gen_tupelized_clause({:->, opts, [[{:when, when_opts, when_body}] | body]}, arity) do
     {vars, [{_, _, _}] = guard_clause} = Enum.split(when_body, arity)
 
-    when_clause = {:when, when_opts, [List.to_tuple(vars) | guard_clause]}
+    tupelized =
+      quote do
+        {unquote_splicing(vars)}
+      end
+
+    when_clause = {:when, when_opts, [tupelized | guard_clause]}
 
     {:->, opts, [[when_clause] | body]}
   end
 
   defp gen_tupelized_clause({:->, opts, [vars | body]}, _arity) do
-    {:->, opts, [[List.to_tuple(vars)] | body]}
+    tupelized =
+      quote do
+        {unquote_splicing(vars)}
+      end
+
+    {:->, opts, [[tupelized] | body]}
   end
 
   defp gen_module_name(%{module: module}) do
@@ -283,9 +293,5 @@ defmodule Sievex do
 
   defp gen_module_name(module) when is_atom(module) do
     module |> Module.split() |> Enum.join(".")
-  end
-
-  defp gen_module_func_name(module, func_name, func_args) do
-    "#{gen_module_name(module)}.#{func_name}/#{length(func_args)}"
   end
 end
